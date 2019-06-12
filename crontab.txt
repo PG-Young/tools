@@ -1,0 +1,19 @@
+crontab -e 
+
+每分钟执行一次
+* * * * * sh /opt/module/flume/write.sh
+
+启动
+	service crond restart
+
+启动服务命令：[root@centos6 /]# service crond start
+
+停止服务命令：[root@centos6 /]# service crond stop
+
+
+
+情况二：当linux发行的版本没有service这个命令时候，用如下命令进行停止启动：
+
+停止服务：[root@centos6 /]# /etc/init.d/cron空格stop
+
+启动服务：[root@centos6 /]# /etc/init.d/cron空格start

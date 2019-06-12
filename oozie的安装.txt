@@ -1,0 +1,104 @@
+bin/hdfs namenode -format
+sbin/start-dfs.sh
+sbin/start-yarn.sh
+sbin/mr-jobhistory-daemon.sh start historyserver
+
+1、解压tar -zxvf oozie-4.0.0-cdh5.3.6.tar.gz -C /opt/module/
+2、cd 到解压后的目录 oozie-4.0.0-cdh5.3.6]$ mkdir libext
+3、在解压tar -zxvf oozie-hadooplibs-4.0.0-cdh5.3.6.tar.gz
+4、cd oozie-4.0.0-cdh5.3.6/
+5、mv hadooplibs/ ../
+6、cd到 /opt/module/oozie-4.0.0-cdh5.3.6/hadooplibs/hadooplib-2.5.0-cdh5.3.6.oozie-4.0.0-cdh5.3.6
+7、cp ./* ../../libext/
+8、 cp /opt/software/chd/mysql-connector-java-5.1.27-bin.jar libext/
+9、cp /opt/software/chd/ext-2.2.zip libext/
+10、oozie-4.0.0-cdh5.3.6]$ cd conf/ 修改oozie的配置文件
+    vim oozie-site.xml   路径为/opt/module/cdh/hadoop-2.5.0-cdh5.3.6/etc/hadoop
+                属性：oozie.service.JPAService.jdbc.driver
+                属性值：com.mysql.jdbc.Driver
+                解释：JDBC的驱动
+
+                属性：oozie.service.JPAService.jdbc.url
+                属性值：jdbc:mysql://hadoop102:3306/oozie
+                解释：oozie所需的数据库地址
+
+                属性：oozie.service.JPAService.jdbc.username
+                属性值：root
+                解释：数据库用户名
+
+                属性：oozie.service.JPAService.jdbc.password
+                属性值：000000
+                解释：数据库密码
+
+                属性：oozie.service.HadoopAccessorService.hadoop.configurations
+                属性值：*=/opt/module/CDH/hadoop-2.5.0-cdh5.3.6/etc/hadoop
+                解释：让Oozie引用Hadoop的配置文件
+  
+  把文件，oozie分发到其他节点
+  
+11、上传bin/oozie-setup.sh sharelib create -fs hdfs://hadoop101:8020 -locallib oozie-sharelib-4.0.0-cdh5.3.6-yarn.tar.gz
+12、bin/ooziedb.sh create -sqlfile oozie.sql -run  
+13、打包项目，生成war包 
+[atguigu@hadoop102 oozie-4.0.0-cdh5.3.6]$ bin/oozie-setup.sh prepare-war
+14、启动bin/oozied.sh start  关闭bin/oozied.sh stop
+15/http://hadoop101:11000/oozie/   
+**  启动oozie需要开启历史服务器。
+sbin/mr-jobhistory-daemon.sh start historyserver
+
+
+
+***************案例一******************
+使用oozei调度shell脚本   http://hadoop101:11000/oozie/
+1、创建工作目录[atguigu@hadoop101 oozie-4.0.0-cdh5.3.6]$ mkdir -p oozie-apps/shell
+2、在oozie-apps/shell目录下创建两个文件——job.properties和workflow.xml文件
+[atguigu@hadoop102 shell]$ touch workflow.xml   touch job.properties
+3、编辑job.properties和workflow.xml文件
+job.properties
+        #HDFS地址
+        nameNode=hdfs://hadoop101:8020
+        #ResourceManager地址
+        jobTracker=hadoop102:8032
+        #队列名称
+        queueName=default
+        examplesRoot=oozie-apps
+        oozie.wf.application.path=${nameNode}/user/${user.name}/${examplesRoot}/shell
+workflow.xml
+        <workflow-app xmlns="uri:oozie:workflow:0.4" name="shell-wf">
+        <!--开始节点-->
+        <start to="shell-node"/>
+        <!--动作节点-->
+        <action name="shell-node">
+            <!--shell动作-->
+            <shell xmlns="uri:oozie:shell-action:0.2">
+                <job-tracker>${jobTracker}</job-tracker>
+                <name-node>${nameNode}</name-node>
+                <configuration>
+                    <property>
+                        <name>mapred.job.queue.name</name>
+                        <value>${queueName}</value>
+                    </property>
+                </configuration>
+                <!--要执行的脚本-->
+                <exec>mkdir</exec>
+                <argument>/opt/module/d</argument>
+                <capture-output/>
+            </shell>
+            <ok to="end"/>
+            <error to="fail"/>
+        </action>
+        <!--kill节点-->
+        <kill name="fail">
+            <message>Shell action failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+        </kill>
+        <!--结束节点-->
+        <end name="end"/>
+        </workflow-app>
+4）上传任务配置
+[atguigu@hadoop102 oozie-4.0.0-cdh5.3.6]$ /opt/module/cdh/hadoop-2.5.0-cdh5.3.6/bin/hadoop fs -put oozie-apps/ /user/atguigu
+5）执行任务
+[atguigu@hadoop102 oozie-4.0.0-cdh5.3.6]$ bin/oozie job -oozie http://hadoop101:11000/oozie -config oozie-apps/shell/job.properties -run
+6）杀死某个任务
+[atguigu@hadoop102 oozie-4.0.0-cdh5.3.6]$ bin/oozie job -oozie http://hadoop102:11000/oozie -kill 0000004-170425105153692-oozie-z-W
+
+
+        

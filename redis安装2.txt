@@ -1,0 +1,60 @@
+nginx的安装
+    sudo yum -y install    openssl openssl-devel pcre pcre-devel    zlib zlib-devel gcc gcc-c++
+    
+    
+解压缩nginx-xx.tar.gz包。
+进入解压缩目录，执行
+./configure   --prefix=/opt/module  
+
+
+
+编译   不在同一个 文件中
+
+解压 到/opt/module   然后改名为 nginx-1.12.2   为nginx
+
+ 
+make && make install
+
+
+./configure --prefix=/opt/module/nginx --conf-path=/usr/local/nginx/nginx.conf
+
+
+启动命令:  在/usr/local/nginx/sbin目录下执行  ./nginx
+关闭命令: 在/usr/local/nginx/sbin目录下执行  ./nginx  -s  stop 
+重新加载命令: 在/usr/local/nginx/sbin目录下执行  ./nginx  -s reload 
+
+
+
+如果启动报错   执行 ln -s /usr/local/lib/libpcre.so.1 /lib64
+
+
+
+修改conf下的nginx.conf文件
+    http{
+   ..........
+    upstream logserver{
+      server    hadoop1:8080 weight=1;  
+      server    hadoop2:8080 weight=1;
+      server    hadoop3:8080 weight=1;
+    }
+    server {
+        listen       80;
+        server_name  logserver;
+ 
+        location / {
+            root   html;
+            index  index.html index.htm;
+            proxy_pass http://logserver;
+            proxy_connect_timeout 10;
+ 
+         }
+   ..........
+}
+
+
+sudo setcap cap_net_bind_service=+eip /opt/module/nginx/sbin/nginx
+
+
+
+
+

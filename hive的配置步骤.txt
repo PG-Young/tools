@@ -1,0 +1,99 @@
+Hive安装步骤
+1、上传apache-hive-1.2.1-bin.tar.gz到opt/software
+2、解压到、opt/module
+3、把apache-hive-1.2.1-bin.tar.gz  重命名为hive
+4、修改conf的hive-env.sh.template   为hive-env.sh
+5、配置HADOOP_HOME=/opt/module/hadoop-2.7.2
+    export HIVE_CONF_DIR=/opt/module/hive/conf
+6、启动hadoop集群hadoop101  sbin/start-dfs.sh   hadoop102 sbin/start-yarn.sh
+7、在HDFS上创建tmp   hadoop fs -mkdir /tmp    hadoop fs -mkdir -p /user/hive/warehouse
+                        bin/hadoop fs -chmod g+w /tmp
+                         bin/hadoop fs -chmod g+w /user/hive/warehouse
+8、启动hive  bin/hive 
+9、创建/opt/module/hivedatas 文件夹，上传数据
+10、在hive中建表
+create table student(id int, name string) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t';
+11、加载本地数据load data local inpath '/opt/module/datas/student.txt' into table student;
+
+
+********hive自带的数据库不支持多线程客户端操作。更换为mysql数据库。
+安装mysql
+
+1、卸载自带的数据库 rpm -qa | grep  -i mysql | xargs sudo rpm -e --nodeps
+2、sudo rpm -ivh MySQL-server-5.6.24-1.el6.x86_64.rpm
+3、产生随机密码    A RANDOM PASSWORD HAS BEEN SET FOR THE MySQL root USER !
+                   You will find that password in '/root/.mysql_secret'.
+4、sudo cat /root/.mysql_secret    随机密码  C85p0ACu6MxBrJ64
+5、安装cli sudo rpm -ivh MySQL-client-5.6.24-1.el6.x86_64.rpm
+6、启动mysql 服务sudo service mysql start
+7、登录mysql   mysql -uroot -pC85p0ACu6MxBrJ64
+8、修改密码SET PASSWORD=PASSWORD('000000');    
+
+****配置mysql中user表root用户远程登录。
+1、use mysql (mysql的管理数据库，用户名，密码)
+2、select user,host,password from user;
+3、删除不是localhost的本机，delete from user where host<>"localhost";
+4、修改host为任意update user set host = "%";
+5、刷新权限 flush privileges;
+6、退出exit
+
+********************配置hive数据放在mysql数据库中。
+1、hive连接mysql的jdbc驱动。tar zxf mysql-connector-java-5.1.27.tar.gz
+2、进入解压后的cd mysql-connector-java-5.1.27
+3、拷贝cp mysql-connector-java-5.1.27-bin.jar  /opt/module/hive/lib/    就能找到mysql
+4、在/opt/module/hive/conf目录下创建一个hive-site.xml内容如下：
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+	<property>
+	  <name>javax.jdo.option.ConnectionURL</name>
+	  <value>jdbc:mysql://hadoop101:3306/metastore?createDatabaseIfNotExist=true</value>
+	  <description>JDBC connect string for a JDBC metastore</description>
+	</property>
+
+	<property>
+	  <name>javax.jdo.option.ConnectionDriverName</name>
+	  <value>com.mysql.jdbc.Driver</value>
+	  <description>Driver class name for a JDBC metastore</description>
+	</property>
+
+	<property>
+	  <name>javax.jdo.option.ConnectionUserName</name>
+	  <value>root</value>
+	  <description>username to use against metastore database</description>
+	</property>
+
+	<property>
+	  <name>javax.jdo.option.ConnectionPassword</name>
+	  <value>000000</value>
+	  <description>password to use against metastore database</description>
+	</property>
+</configuration>
+
+******开启hive  bin/hive
+
+
+
+
+在hive-site.xml文件中添加如下配置信息，就可以实现显示当前数据库，以及查询表的头信息配置。
+<property>
+	<name>hive.cli.print.header</name>
+	<value>true</value>
+</property>
+
+<property>
+	<name>hive.cli.print.current.db</name>
+	<value>true</value>
+</property>
+
+
+
+*******Hive的JDBC访问 
+1、启动bin/hiveserver2  有个10000号端口
+2、开启另一个窗口启动bin/beeline
+    在输入!connect jdbc:hive2://hadoop101:10000   输入用户，密码不用输
+    Driver为Hive JDBC
+******
+3、不用登陆客户端，直接远程bin/hive -e "select * from student ;"
+        写ODS导入脚本，shell中执行sql语句
+        bin/hive -f hive.sql   nologin 方式执行脚本中的语句

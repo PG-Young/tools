@@ -1,0 +1,46 @@
+flink的安装  
+一、standalone 模式
+1、修改 flink/conf/flink-conf.yaml 文件   
+        jobmanager.rpc.address: hadoop102
+        
+2、 修改 /conf/slave文件
+        hadoop103
+        hadoop104
+3、分发 给 另外两台机子
+4、启动   ./start-cluster.sh
+
+访问http://hadoop1:8081
+
+
+nc -lk 7777    yum install -y nc
+
+
+案例  在hadoop102 上提交   在103  104 执行taskmanage   需要这两个节点 有输入的文件  flinkdemo/wc.txt
+--input /opt/module/flink-1.7.0/flinkdemo/wc.txt  --output /opt/module/flink-1.7.0/flinkdemo/output2.csv
+
+
+
+./flink run -c com.atguigu.flink.BatchWcApp    /opt/module/flink-1.7.0/flink_demo-1.0-SNAPSHOT-jar-with-dependencies.jar
+ --input /opt/module/flink-1.7.0/flinkdemo/wc.txt --output /opt/module/flink-1.7.0/flinkdemo/output3.csv
+ 
+ 
+ 
+ 2  yarn模式
+
+1)	启动hadoop集群
+
+2)	启动yarn-session
+
+
+./yarn-session.sh -n 2 -s 2 -jm 1024 -tm 1024 -nm test -d
+其中：
+-n(--container)：TaskManager的数量。
+-s(--slots)：	每个TaskManager的slot数量，默认一个slot一个core，默认每个taskmanager的slot的个数为1，有时可以多一些taskmanager，做冗余。
+-jm：JobManager的内存（单位MB)。
+-tm：每个taskmanager的内存（单位MB)。
+-nm：yarn 的appName(现在yarn的ui上的名字)。 
+-d：后台执行。
+
+
+ ./flink run  -m yarn-cluster -c com.atguigu.flink.BatchWcApp    /opt/module/flink-1.7.0/flink_demo-1.0-SNAPSHOT-jar-with-dependencies.jar
+ --input /opt/module/flink-1.7.0/flinkdemo/wc.txt --output /opt/module/flink-1.7.0/flinkdemo/output4.csv

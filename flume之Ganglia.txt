@@ -1,0 +1,128 @@
+Flume监控之Ganglia的安装配置
+1、安装Ganglia
+        sudo rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+        sudo yum -y install httpd php
+        sudo yum -y install rrdtool perl-rrdtool rrdtool-devel
+        sudo yum -y install apr-devel
+        sudo yum -y install ganglia-gmetad ganglia-web ganglia-gmond
+2、修改配置文件/etc/httpd/conf.d/ganglia.conf
+    sudo vim /etc/httpd/conf.d/ganglia.conf  如下
+          #Deny from all
+          Allow from all
+          # Allow from 127.0.0.1
+          # Allow from ::1
+ 3、sudo vim /etc/ganglia/gmetad.conf  
+            data_source "hadoop102" 192.168.57.102
+ 4、sudo vim /etc/ganglia/gmond.conf
+             cluster {
+              name = "hadoop102"
+              owner = "unspecified"
+              latlong = "unspecified"
+              url = "unspecified"
+***********************
+              udp_send_channel {
+  #bind_hostname = yes # Highly recommended, soon to be default.
+                       # This option tells gmond to use a source address
+                       # that resolves to the machine's hostname.  Without
+                       # this, the metrics may appear to come from any
+                       # interface and the DNS names associated with
+                       # those IPs will be used to create the RRDs.
+  # mcast_join = 239.2.11.71
+  host = 192.168.57.102
+  port = 8649
+  ttl = 1
+  ***********************只有一个bind注掉原来的**
+                      udp_recv_channel {
+                      # mcast_join = 239.2.11.71
+                      port = 8649
+                      bind = 192.168.57.102
+                      retry_bind = true
+
+5、sudo vim /etc/selinux/config    SELINUX=disabled        永久。，重启
+    临时用 sudo setenforce 0
+
+		[atguigu@hadoop102 flume]$ sudo service httpd start
+		[atguigu@hadoop102 flume]$ sudo service gmetad start
+		[atguigu@hadoop102 flume]$ sudo service gmond start
+
+
+6、 打开网页浏览ganglia页面
+        http://192.168.57.102/ganglia
+        尖叫提示：如果完成以上操作依然出现权限不足错误，请修改/var/lib/ganglia目录的权限：
+        [atguigu@hadoop102 flume]$ sudo chmod -R 777 /var/lib/ganglia
+7、操作flume监控测试
+  修改/opt/module/flume/conf目录下的flume-env.sh配置：
+        export JAVA_OPTS="-Dflume.monitoring.type=ganglia
+        -Dflume.monitoring.hosts=192.168.57.102:8649
+        -Xms100m
+        -Xmx200m"
+8、启动Flume任务
+            [atguigu@hadoop102 flume]$ bin/flume-ng agent \
+            --conf conf/ \
+            --name a1 \
+            --conf-file job/flume-netcat-logger.conf \
+            -Dflume.root.logger==INFO,console \
+            -Dflume.monitoring.type=ganglia \
+            -Dflume.monitoring.hosts=192.168.57.101:8649
+9、发送数据观察ganglia监测图
+[atguigu@hadoop102 flume]$ nc localhost 44444
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  

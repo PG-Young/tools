@@ -1,0 +1,51 @@
+kafka集群的安装
+1、上传到/opt/software  解压到/opt/module tar -zxvf kafka_2.11-0.11.0.0.tgz -C /opt/module/
+2、改名 mv kafka_2.11-0.11.0.2/ kafka
+3、在kafka里创建logs  mkdir logs
+4、修改配置文件cd config/           vi server.properties
+                    #broker的全局唯一编号，不能重复
+                broker.id=0
+                #删除topic功能使能
+                delete.topic.enable=true
+                #处理网络请求的线程数量
+                num.network.threads=3
+                #用来处理磁盘IO的现成数量
+                num.io.threads=8
+                #发送套接字的缓冲区大小
+                socket.send.buffer.bytes=102400
+                #接收套接字的缓冲区大小
+                socket.receive.buffer.bytes=102400
+                #请求套接字的缓冲区大小
+                socket.request.max.bytes=104857600
+                #kafka运行日志存放的路径	
+                log.dirs=/opt/module/kafka/logs
+                #topic在当前broker上的分区个数
+                num.partitions=1
+                #用来恢复和清理data下数据的线程数量
+                num.recovery.threads.per.data.dir=1
+                #segment文件保留的最长时间，超时将被删除
+                log.retention.hours=168
+                #配置连接Zookeeper集群地址
+                zookeeper.connect=hadoop102:2181,hadoop103:2181,hadoop104:2181
+5、分发kafka到其它节点。并改broker.id=1、2
+6、配置环境变量 sudo vi /etc/profile
+                #KAFKA_HOME
+                export KAFKA_HOME=/opt/module/kafka
+                export PATH=$PATH:$KAFKA_HOME/bin
+7、source /etc/profile
+8、启动之前要先启动zookeeper
+    依次在hadoop102、hadoop103、hadoop104节点上启动kafka
+    bin/kafka-server-start.sh config/server.properties
+    或者后台 bin/kafka-server-start.sh config/server.properties &
+9）关闭集群
+    bin/kafka-server-stop.sh stop
+
+创建主题
+            bin/kafka-topics.sh --zookeeper hadoop101:2181 --list
+            bin/kafka-topics.sh --zookeeper hadoop102:2181 --create --topic ss --partitions 3 --replication-factor 2
+            bin/kafka-topics.sh --bootstrap-server hadoop102:9092,hadoop103:9092,hadoop104:9092  --create --topic ss --partitions 3 --replication-factor 2
+            bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test
+
+            bin/kafka-console-producer.sh --broker-list hadoop102:9092 --topic user-behavior
+
+            bin/kafka-console-consumer.sh  --zookeeper hadoop102:2181  --topic user-behavior

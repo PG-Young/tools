@@ -1,0 +1,447 @@
+flume的安装配置。  (source即使监控的意思，执行，先执行下游不丢数据)
+http://flume.apache.org/    http://flume.apache.org/FlumeUserGuide.html    http://archive.apache.org/dist/flume/
+1、将apache-flume-1.7.0-bin.tar.gz上传到linux的/opt/software目录下
+2、解压apache-flume-1.7.0-bin.tar.gz到/opt/module/目录下
+        tar -zxf apache-flume-1.7.0-bin.tar.gz -C /opt/module/
+3、修改apache-flume-1.7.0-bin的名称为flume
+        mv apache-flume-1.7.0-bin flume
+4、将flume/conf下的flume-env.sh.template文件修改为flume-env.sh，并配置flume-env.sh文件
+        mv flume-env.sh.template flume-env.sh
+        vi flume-env.sh    export JAVA_HOME=/opt/module/jdk1.8.0_144
+5、安装netcat  sudo yum install -y nc    查看  sudo netstat -tunlp | grep 44444
+6、在flume目录下创建job文件夹并进入job文件夹。mkdir job     cd job/    touch flume-netcat-logger.conf
+   vim 内容：# Name the components on this agent
+                    a1.sources = r1
+                    a1.sinks = k1
+                    a1.channels = c1
+
+                    # Describe/configure the source
+                    a1.sources.r1.type = netcat
+                    a1.sources.r1.bind = localhost
+                    a1.sources.r1.port = 44444
+
+                    # Describe the sink
+                    a1.sinks.k1.type = logger
+
+                    # Use a channel which buffers events in memory
+                    a1.channels.c1.type = memory
+                    a1.channels.c1.capacity = 1000
+                    a1.channels.c1.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a1.sources.r1.channels = c1
+                    a1.sinks.k1.channel = c1
+7、开启flume  
+        1、bin/flume-ng agent --conf conf/ --name a1 --conf-file job/flume-netcat-logger.conf -Dflume.root.logger=INFO,console
+         2、bin/flume-ng agent -c conf/ -n a1 –f job/flume-netcat-logger.conf -Dflume.root.logger=INFO,console           
+8、使用netcat，向本机发送内容。nc localhost 44444    abcd   flume 监控localhpst的44444端口，sink到控制台
+******************实时读取本地文件到HDFS********************
+需求：监控hive日志，上传到HDFS
+流程（创建flume配置文件（source为exec）--》执行配置文件 --》开启Hive实时更新log（/opt/module/hive/logs/hive/log）-->查看HDFS数据）
+1、拷贝commons-configuration-1.6.jar、
+                    hadoop-auth-2.7.2.jar、
+                    hadoop-common-2.7.2.jar、
+                    hadoop-hdfs-2.7.2.jar、
+                    commons-io-2.4.jar、
+                    htrace-core-3.1.0-incubating.jar
+    jar到/opt/module/flume/lib文件夹下。
+2、创建 job下的touch flume-file-hdfs.conf    vim 内容：
+                    # Name the components on this agent
+                    a2.sources = r2
+                    a2.sinks = k2
+                    a2.channels = c2
+
+                    # Describe/configure the source
+                    a2.sources.r2.type = exec
+                    a2.sources.r2.command = tail -F /opt/module/hive/logs/hive.log
+                    a2.sources.r2.shell = /bin/bash -c
+
+                    # Describe the sink
+                    a2.sinks.k2.type = hdfs
+                    a2.sinks.k2.hdfs.path = hdfs://hadoop101:9000/flume/%Y%m%d/%H
+                    #上传文件的前缀
+                    a2.sinks.k2.hdfs.filePrefix = logs-
+                    #是否按照时间滚动文件夹
+                    a2.sinks.k2.hdfs.round = true
+                    #多少时间单位创建一个新的文件夹
+                    a2.sinks.k2.hdfs.roundValue = 1
+                    #重新定义时间单位
+                    a2.sinks.k2.hdfs.roundUnit = hour
+                    #是否使用本地时间戳
+                    a2.sinks.k2.hdfs.useLocalTimeStamp = true
+                    #积攒多少个Event才flush到HDFS一次
+                    a2.sinks.k2.hdfs.batchSize = 1000
+                    #设置文件类型，可支持压缩
+                    a2.sinks.k2.hdfs.fileType = DataStream
+                    #多久生成一个新的文件
+                    a2.sinks.k2.hdfs.rollInterval = 60
+                    #设置每个文件的滚动大小
+                    a2.sinks.k2.hdfs.rollSize = 134217700
+                    #文件的滚动与Event数量无关
+                    a2.sinks.k2.hdfs.rollCount = 0
+
+                    # Use a channel which buffers events in memory
+                    a2.channels.c2.type = memory
+                    a2.channels.c2.capacity = 1000
+                    a2.channels.c2.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a2.sources.r2.channels = c2
+                    a2.sinks.k2.channel = c2
+3、启动bin/flume-ng agent --conf conf/ --name a2 --conf-file job/flume-file-hdfs.conf
+4、启动hive，到HDfs查看数据
+
+***************实时读取目录文件到HDFS，flume监听整个目录*************************
+需求：监控本地文件夹（配置文件sourceType（spooldir），sinkType：hdfs--》开启执行监控---》向监控的文件夹操作---》查看HDFS.completed）
+1、flume/job下touch flume-dir-hdfs.conf  vim
+                    a3.sources = r3
+                    a3.sinks = k3
+                    a3.channels = c3
+
+                    # Describe/configure the source
+                    a3.sources.r3.type = spooldir
+                    a3.sources.r3.spoolDir = /opt/module/flume/upload
+                    a3.sources.r3.fileSuffix = .COMPLETED
+                    a3.sources.r3.fileHeader = true
+                    #忽略所有以.tmp结尾的文件，不上传
+                    a3.sources.r3.ignorePattern = ([^ ]*\.tmp)
+
+                    # Describe the sink
+                    a3.sinks.k3.type = hdfs
+                    a3.sinks.k3.hdfs.path = hdfs://hadoop101:9000/flume/upload/%Y%m%d/%H
+                    #上传文件的前缀
+                    a3.sinks.k3.hdfs.filePrefix = upload-
+                    #是否按照时间滚动文件夹
+                    a3.sinks.k3.hdfs.round = true
+                    #多少时间单位创建一个新的文件夹
+                    a3.sinks.k3.hdfs.roundValue = 1
+                    #重新定义时间单位
+                    a3.sinks.k3.hdfs.roundUnit = hour
+                    #是否使用本地时间戳
+                    a3.sinks.k3.hdfs.useLocalTimeStamp = true
+                    #积攒多少个Event才flush到HDFS一次
+                    a3.sinks.k3.hdfs.batchSize = 100
+                    #设置文件类型，可支持压缩
+                    a3.sinks.k3.hdfs.fileType = DataStream
+                    #多久生成一个新的文件
+                    a3.sinks.k3.hdfs.rollInterval = 60
+                    #设置每个文件的滚动大小大概是128M
+                    a3.sinks.k3.hdfs.rollSize = 134217700
+                    #文件的滚动与Event数量无关
+                    a3.sinks.k3.hdfs.rollCount = 0
+
+                    # Use a channel which buffers events in memory
+                    a3.channels.c3.type = memory
+                    a3.channels.c3.capacity = 1000
+                    a3.channels.c3.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a3.sources.r3.channels = c3
+                    a3.sinks.k3.channel = c3
+2、启动bin/flume-ng agent --conf conf/ --name a3 --conf-file job/flume-dir-hdfs.conf
+3、在/opt/module/flume目录下创建upload文件夹
+        mkdir upload   cd /upload  touch atguigu.txt   touch atguigu.tmp   touch atguigu.log
+4、向upload中操作文件夹，查看HDFS
+
+//******单数据源-->多出口（选择器）案例source（channel）sink-->channel1、channel2、
+需求：flume1监控文件变动，传输到flume2（存储HDFS）、和flume3（存储本地localFileSystem）
+    流程（Hive.log-->Flume1的source（exec）、sink（avro）选择器replicating：--->flume2(source(avro)、sink（HDFS）)和flume3(source(avro),sink(File_roll))）
+   配置1个接收日志文件的source和两个channel、两个sink，分别输送给flume-flume-hdfs和flume-flume-dir。
+1、hadoop101：在/opt/module/flume/job目录下创建group1文件夹    mkdir flume3
+        vim flume-file-flume.conf
+                     # Name the components on this agent
+                    a1.sources = r1
+                    a1.sinks = k1 k2
+                    a1.channels = c1 c2
+                    # 将数据流复制给所有channel
+                    a1.sources.r1.selector.type = replicating
+
+                    # Describe/configure the source
+                    a1.sources.r1.type = exec
+                    a1.sources.r1.command = tail -F /opt/module/hive/logs/hive.log
+                    a1.sources.r1.shell = /bin/bash -c
+
+                    # Describe the sink
+                    # sink端的avro是一个数据发送者
+                    a1.sinks.k1.type = avro
+                    a1.sinks.k1.hostname = hadoop101
+                    a1.sinks.k1.port = 4141
+
+                    a1.sinks.k2.type = avro
+                    a1.sinks.k2.hostname = hadoop101
+                    a1.sinks.k2.port = 4142
+
+                    # Describe the channel
+                    a1.channels.c1.type = memory
+                    a1.channels.c1.capacity = 1000
+                    a1.channels.c1.transactionCapacity = 100
+
+                    a1.channels.c2.type = memory
+                    a1.channels.c2.capacity = 1000
+                    a1.channels.c2.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a1.sources.r1.channels = c1 c2
+                    a1.sinks.k1.channel = c1
+                    a1.sinks.k2.channel = c2
+2、vim flume-flume-hdfs.conf
+                    # Name the components on this agent
+                    a2.sources = r1
+                    a2.sinks = k1
+                    a2.channels = c1
+
+                    # Describe/configure the source
+                    # source端的avro是一个数据接收服务
+                    a2.sources.r1.type = avro
+                    a2.sources.r1.bind = hadoop101
+                    a2.sources.r1.port = 4141
+
+                    # Describe the sink
+                    a2.sinks.k1.type = hdfs
+                    a2.sinks.k1.hdfs.path = hdfs://hadoop101:9000/flume2/%Y%m%d/%H
+                    #上传文件的前缀
+                    a2.sinks.k1.hdfs.filePrefix = flume2-
+                    #是否按照时间滚动文件夹
+                    a2.sinks.k1.hdfs.round = true
+                    #多少时间单位创建一个新的文件夹
+                    a2.sinks.k1.hdfs.roundValue = 1
+                    #重新定义时间单位
+                    a2.sinks.k1.hdfs.roundUnit = hour
+                    #是否使用本地时间戳
+                    a2.sinks.k1.hdfs.useLocalTimeStamp = true
+                    #积攒多少个Event才flush到HDFS一次
+                    a2.sinks.k1.hdfs.batchSize = 100
+                    #设置文件类型，可支持压缩
+                    a2.sinks.k1.hdfs.fileType = DataStream
+                    #多久生成一个新的文件
+                    a2.sinks.k1.hdfs.rollInterval = 600
+                    #设置每个文件的滚动大小大概是128M
+                    a2.sinks.k1.hdfs.rollSize = 134217700
+                    #文件的滚动与Event数量无关
+                    a2.sinks.k1.hdfs.rollCount = 0
+
+                    # Describe the channel
+                    a2.channels.c1.type = memory
+                    a2.channels.c1.capacity = 1000
+                    a2.channels.c1.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a2.sources.r1.channels = c1
+                    a2.sinks.k1.channel = c1
+3、vim flume-flume-dir.conf
+                    # Name the components on this agent
+                    a3.sources = r1
+                    a3.sinks = k1
+                    a3.channels = c2
+
+                    # Describe/configure the source
+                    a3.sources.r1.type = avro
+                    a3.sources.r1.bind = hadoop101
+                    a3.sources.r1.port = 4142
+
+                    # Describe the sink
+                    a3.sinks.k1.type = file_roll
+                    a3.sinks.k1.sink.directory = /opt/module/data/flume3
+
+                    # Describe the channel
+                    a3.channels.c2.type = memory
+                    a3.channels.c2.capacity = 1000
+                    a3.channels.c2.transactionCapacity = 100
+
+                    # Bind the source and sink to the channel
+                    a3.sources.r1.channels = c2
+                    a3.sinks.k1.channel = c2
+4、执行        bin/flume-ng agent --conf conf/ --name a3 --conf-file job/group1/flume-flume-dir.conf
+                bin/flume-ng agent --conf conf/ --name a2 --conf-file job/group1/flume-flume-hdfs.conf
+                bin/flume-ng agent --conf conf/ --name a1 --conf-file job/group1/flume-file-flume.conf
+5、启动hive，查看hdfs，查看data本地数据
+
+*************单数据源多出口sink组*************************
+配置1个接收日志文件的source和1个channel、两个sink，分别输送给flume-flume-console1和flume-flume-console2
+需求：flume1架空文件变动（netcat）-->flume2存储到hdfs、和flume3存储到hdfs
+流程：source（netcat控制台），sink（avro）--》source（avro）sink（控制台）、source（avro）sink（控制台）
+1、在/opt/module/flume/job目录下创建group2文件夹    vim flume-netcat-flume.conf
+                        # Name the components on this agent
+                        a1.sources = r1
+                        a1.channels = c1
+                        a1.sinkgroups = g1
+                        a1.sinks = k1 k2
+
+                        # Describe/configure the source
+                        a1.sources.r1.type = netcat
+                        a1.sources.r1.bind = localhost
+                        a1.sources.r1.port = 44444
+
+                        a1.sinkgroups.g1.processor.type = load_balance
+                        a1.sinkgroups.g1.processor.backoff = true
+                        a1.sinkgroups.g1.processor.selector = round_robin
+                        a1.sinkgroups.g1.processor.selector.maxTimeOut=10000
+
+                        # Describe the sink
+                        a1.sinks.k1.type = avro
+                        a1.sinks.k1.hostname = hadoop10
+                        a1.sinks.k1.port = 4141
+
+                        a1.sinks.k2.type = avro
+                        a1.sinks.k2.hostname = hadoop102
+                        a1.sinks.k2.port = 4142
+
+                        # Describe the channel
+                        a1.channels.c1.type = memory
+                        a1.channels.c1.capacity = 1000
+                        a1.channels.c1.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a1.sources.r1.channels = c1
+                        a1.sinkgroups.g1.sinks = k1 k2
+                        a1.sinks.k1.channel = c1
+                        a1.sinks.k2.channel = c1
+2、vim flume-flume-console1.conf
+                        # Name the components on this agent
+                        a2.sources = r1
+                        a2.sinks = k1
+                        a2.channels = c1
+
+                        # Describe/configure the source
+                        a2.sources.r1.type = avro
+                        a2.sources.r1.bind = hadoop102
+                        a2.sources.r1.port = 4141
+
+                        # Describe the sink
+                        a2.sinks.k1.type = logger
+
+                        # Describe the channel
+                        a2.channels.c1.type = memory
+                        a2.channels.c1.capacity = 1000
+                        a2.channels.c1.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a2.sources.r1.channels = c1
+                        a2.sinks.k1.channel = c1
+3、vim flume-flume-console2.conf
+                        # Name the components on this agent
+                        a3.sources = r1
+                        a3.sinks = k1
+                        a3.channels = c2
+
+                        # Describe/configure the source
+                        a3.sources.r1.type = avro
+                        a3.sources.r1.bind = hadoop102
+                        a3.sources.r1.port = 4142
+
+                        # Describe the sink
+                        a3.sinks.k1.type = logger
+
+                        # Describe the channel
+                        a3.channels.c2.type = memory
+                        a3.channels.c2.capacity = 1000
+                        a3.channels.c2.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a3.sources.r1.channels = c2
+                        a3.sinks.k1.channel = c2
+4、执行bin/flume-ng agent --conf conf/ --name a3 --conf-file job/group2/flume-flume-console2.conf -Dflume.root.logger=INFO,console
+bin/flume-ng agent --conf conf/ --name a2 --conf-file job/group2/flume-flume-console1.conf -Dflume.root.logger=INFO,console
+bin/flume-ng agent --conf conf/ --name a1 --conf-file job/group2/flume-netcat-flume.conf
+5. 使用netcat工具向本机的44444端口发送内容
+            nc localhost 44444
+6. 查看Flume2及Flume3的控制台打印日志
+
+**************贴近企业开发**集群flume模式*****多源到hdfs**************************
+需求：hadoop102上flume1监控文件/opt/module/group.log变化
+        hadoop101上flume2监控网络端口数据流-->hadoop103
+        hadoop103上flume3打印数据到控制台（hdfs）
+ 步骤：hive.log-->flume1(source exec,avro sink)--->flume3(avro  source,sink logger)   
+       主机44444端口数据-->flume2(netcat source,sink avro)-->flume3(avro  source,sink logger)   
+
+1、配置集群xsync flume
+2、在hadoop101、hadoop102以及hadoop103的/opt/module/flume/job目录下创建一个group3文件夹。
+3、hadoop102上vim flume1-logger-flume.conf  group3文件夹
+                        # Name the components on this agent
+                        a1.sources = r1
+                        a1.sinks = k1
+                        a1.channels = c1
+
+                        # Describe/configure the source
+                        a1.sources.r1.type = exec
+                        a1.sources.r1.command = tail -F /opt/module/group.log
+                        a1.sources.r1.shell = /bin/bash -c
+
+                        # Describe the sink
+                        a1.sinks.k1.type = avro
+                        a1.sinks.k1.hostname = hadoop104
+                        a1.sinks.k1.port = 4141
+
+                        # Describe the channel
+                        a1.channels.c1.type = memory
+                        a1.channels.c1.capacity = 1000
+                        a1.channels.c1.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a1.sources.r1.channels = c1
+                        a1.sinks.k1.channel = c1
+4、hadoop101上group3    vim flume2-netcat-flume.conf
+                        # Name the components on this agent
+                        a2.sources = r1
+                        a2.sinks = k1
+                        a2.channels = c1
+
+                        # Describe/configure the source
+                        a2.sources.r1.type = netcat
+                        a2.sources.r1.bind = hadoop102
+                        a2.sources.r1.port = 44444
+
+                        # Describe the sink
+                        a2.sinks.k1.type = avro
+                        a2.sinks.k1.hostname = hadoop104
+                        a2.sinks.k1.port = 4141
+
+                        # Use a channel which buffers events in memory
+                        a2.channels.c1.type = memory
+                        a2.channels.c1.capacity = 1000
+                        a2.channels.c1.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a2.sources.r1.channels = c1
+                       a2.sinks.k1.channel = c1
+ 5、hadoop103   vim flume3-flume-logger.conf
+                        # Name the components on this agent
+                        a3.sources = r1
+                        a3.sinks = k1
+                        a3.channels = c1
+
+                        # Describe/configure the source
+                        a3.sources.r1.type = avro
+                        a3.sources.r1.bind = hadoop104
+                        a3.sources.r1.port = 4141
+
+                        # Describe the sink
+                        # Describe the sink
+                        a3.sinks.k1.type = logger
+
+                        # Describe the channel
+                        a3.channels.c1.type = memory
+                        a3.channels.c1.capacity = 1000
+                        a3.channels.c1.transactionCapacity = 100
+
+                        # Bind the source and sink to the channel
+                        a3.sources.r1.channels = c1
+                        a3.sinks.k1.channel = c1
+6、执行bin/flume-ng agent --conf conf/ --name a3 --conf-file job/group3/flume3-flume-logger.conf -Dflume.root.logger=INFO,console
+bin/flume-ng agent --conf conf/ --name a2 --conf-file job/group3/flume2-netcat-flume.conf
+bin/flume-ng agent --conf conf/ --name a1 --conf-file job/group3/flume1-logger-flume.conf
+7．在hadoop103上向/opt/module目录下的group.log追加内容
+[atguigu@hadoop103 module]$ echo 'hello' > group.log
+8．在hadoop102上向44444端口发送数据
+[atguigu@hadoop102 flume]$ telnet hadoop102 44444
+9.检查hadoop104上数据
+
+
+
+
+
+
+
+
+
+   

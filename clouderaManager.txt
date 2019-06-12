@@ -1,0 +1,73 @@
+配置cloudera manager 安装步骤 以下所有操作均使用root用户
+1、内存分配hadoop104 10G hadoop105 2G   hadoop106 2G
+2、安装jdk，配置环境变量，安装mysql，配置相应用户权限。关闭SELINUX
+3、ssh免密登陆
+4、下载第三方依赖，在三台节点上
+ yum -y install chkconfig python bind-utils psmisc libxslt zlib 
+ sqlite cyrus-sasl-plain cyrus-sasl-gssapi fuse fuse-libs redhat-lsb httpd mod_ssl
+5、CM安装部署
+        CM下载地址：http://archive.cloudera.com/cm5/cm/5/
+        离线库下载地址：http://archive.cloudera.com/cdh5/parcels
+6、将安装包上传到software
+    CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel
+    CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel.sha1
+    cloudera-manager-el6-cm5.12.1_x86_64.tar.gz
+    manifest.json
+    MySQL-shared-compat-5.6.41-1.el6.x86_64.rpm
+7、创建文件夹 mkdir /opt/module/cloudera-manager  
+8、解压到文件夹
+        tar -zxvf /opt/software/cloudera-manager-el6-cm5.12.1_x86_64.tar.gz -C /opt/module/cloudera-manager/
+9、所有节点创建用户cloudera-scm  hadoop104】cloudera-scm-server
+        useradd --system --home=/opt/module/cloudera-manager/cm-5.12.1/run/cloudera-scm-server --no-create-home --shell=/bin/false 
+        --comment "Cloudera SCM User" cloudera-scm
+10、查看用户和组 id cloudera-scm
+11、配置CM Agent 修改文件  /opt/module/cloudera-manager/cm-5.12.1/etc/cloudera-scm-agent
+        vim /opt/module/cloudera-manager/cm-5.12.1/etc/cloudera-scm-agent/config.ini
+        改    server_host=hadoop102
+12、配置Cm的数据库
+    1.	拷贝mysql jar文件到目录 /usr/share/java/ 先创建文件夹mkdir /usr/share/java/
+    2、cp /opt/software/mysql-libs/mysql-connector-java-5.1.27/mysql-connector-java-5.1.27-bin.jar /usr/share/java/
+    3、先解压mysql-connector-java-5.1.27.tar.gz，注意jar包名称要修改为mysql-connector-java.jar
+        mv /usr/share/java/mysql-connector-java-5.1.27-bin.jar /usr/share/java/mysql-connector-java.jar
+    4、在mysql中创建cm库
+        /opt/module/cloudera-manager/cm-5.12.1/share/cmf/schema/scm_prepare_database.sh mysql cm -hhadoop104 -uroot -p000000 --scm-host hadoop104 scm scm scm
+13、分发 cloudera-manager
+    scp -r /opt/module/cloudera-manager/ hadoop105:/opt/module/和hadoop106
+14、server节点创建Parcel-repo目录 mkdir -p /opt/cloudera/parcel-repo
+                  chown cloudera-scm:cloudera-scm /opt/cloudera/parcel-repo
+15、改名mv /opt/software/CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel.sha1 /opt/software/CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel.sha
+16、cp /opt/software/CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel.sha /opt/cloudera/parcel-repo/
+    cp /opt/software/CDH-5.12.1-1.cdh5.12.1.p0.3-el6.parcel /opt/cloudera/parcel-repo/
+    cp /opt/software/manifest.json /opt/cloudera/parcel-repo/
+17、在Agent 节点（hadoop102，hadoop103，hadoop104）创建目录/opt/cloudera/parcels
+        mkdir -p /opt/cloudera/parcels
+        chown cloudera-scm:cloudera-scm /opt/cloudera/parcels
+18、分发Parcel-repo     scp -r /opt/cloudera/ hadoop103:/opt/
+19、创建CM的数据库
+    （1）集群监控数据库
+    create database amon DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+    （2）hive数据库 
+    create database hive DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+    （3）oozie数据库
+    create database oozie DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+    （4）hue数据库
+    create database hue DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+20、启动CM server&Agent服务。在etc下
+        /opt/module/cloudera-manager/cm-5.12.1/etc/init.d/cloudera-scm-server start
+    工作节点：hadoop102\hadoop103\hadoop104
+        /opt/module/cloudera-manager/cm-5.12.1/etc/init.d/cloudera-scm-agent start
+        注意：启动过程非常慢，Manager 启动成功需要等待一段时间，过程中会在数据库中创建对应的表需要耗费一些时间。
+21、netstat -anp | grep 7180     访问http://hadoop102:7180，（用户名、密码：admin）
+
+界面选择：免费 管理已有主机
+            使用Parcel离线安装，CDH-5.12.1.p0.3，其他 无
+            添加服务，cluster 加hive，
+问题：假如出现节点来回变动，把/opt/module/cloudera-manager/cm-5.12.1/lib/cloudra-scm-agent下的uuid和cm_guid删掉重起server和agent
+        timeout要重试
+        添加hive过程中如果出错，将页面的服务删掉，mysql的数据库中也要将hive数据库删掉
+        重新添加，要将hdfs文件的data删掉
+关闭cloudera——manager步骤
+    cluster选择停止，clouderamanager选择停止。
+    然后关闭服务节点：/opt/module/cloudera-manager/cm-5.12.1/etc/init.d/cloudera-scm-server stop
+    关闭工作节点：hadoop104\hadoop105\hadoop106
+    /opt/module/cloudera-manager/cm-5.12.1/etc/init.d/cloudera-scm-agent stop

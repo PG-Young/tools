@@ -1,0 +1,169 @@
+Redis  的安装
+    http://Redis.io
+http://www.Redis.net.cn/
+
+1、下载获得redis-3.2.5.tar.gz后将它放入我们的Linux目录/opt
+2、解压命令:tar -zxvf redis-3.2.5.tar.gz
+3、解压完成后进入目录:cd redis-3.2.5
+4、在redis-3.2.5目录下执行make命令
+安装   gcc
+
+能上网：  sudo
+      yum install gcc
+      yum install gcc-c++
+5、在redis-3.2.5目录下再次执行make命令
+         Jemalloc/jemalloc.h：没有那个文件
+        解决方案：运行make distclean之后再 make
+6、在redis-3.2.5目录下再次执行make命令
+7、执行完make后，跳过Redis test 继续执行make install
+8、查看默认安装目录：usr/local/bin
+
+Redis-benchmark:性能测试工具，可以在自己本子运行，看看自己本子性能如何(服务启动起来后执行)
+
+Redis-check-aof：修复有问题的AOF文件，rdb和aof后面讲
+Redis-check-dump：修复有问题的dump.rdb文件
+Redis-sentinel：Redis集群使用
+redis-server：Redis服务器启动命令
+redis-cli：客户端，操作入口
+
+启动 
+1、备份redis.conf：拷贝一份redis.conf到其他目录
+2、修改redis.conf文件将里面的daemonize no 改成 yes，让服务在后台启动
+3、启动命令：执行  redis-server   /myredis/redis.conf
+4、用客户端访问: redis-cli
+   多个端口可以 redis-cli  –p  6379
+
+5、测试验证： ping
+
+关闭
+单实例关闭：redis-cli shutdown
+多实例关闭，指定端口关闭:Redis-cli -p 6379 shutdown
+
+
+
+
+
+Redis的主从复制
+
+配从(服务器)不配主(服务器)
+
+        拷贝多个redis.conf文件include
+        开启daemonize yes
+        Pid文件名字pidfile
+        指定端口port
+        Log文件名字
+        Dump.rdb名字dbfilename
+        Appendonly 关掉或者换名字
+
+
+复制原理
+ 每次从机联通后，都会给主机发送sync指令
+ 主机立刻进行存盘操作，发送RDB文件，给从机
+ 从机收到RDB文件后，进行全盘加载
+ 之后每次主机的写操作，都会立刻发送给从机，从机执行相同的命令
+
+ 
+ 哨兵模式(sentinel)
+反客为主的自动版，能够后台监控主机是否故障，如果故障了根据投票数自动将从库转换为主库.
+
+调整为一主二仆模式
+自定义的/myredis目录下新建sentinel.conf文件
+
+在配置文件中填写内容：
+        sentinel  monitor  mymaster  127.0.0.1  6379  1
+其中mymaster为监控对象起的服务器名称， 1 为 至少有多少个哨兵同意迁移的数量。 
+
+
+启动哨兵
+执行redis-sentinel  /myredis/sentinel.conf 
+
+
+
+
+
+
+Redis 集群
+即启动N个redis节点，将整个数据库分布存储在这N个节点中，每个节点存储总数据的1/N。
+Redis 集群通过分区（partition）来提供一定程度的可用性（availability）： 即使集群中有一部分节点失效或者无法进行通讯， 集群也可以继续处理命令请求。
+
+
+1、安装ruby环境
+能上网：
+      执行yum install ruby
+      执行yum install rubygems
+
+不能上网： 
+ cd  /run/media/root/CentOS 7 x86_64/Packages（路径跟centos6不同）  获取右图rpm包 
+
+拷贝到/opt/rpmruby/目录下，并cd到此目录
+
+执行：rpm -Uvh *.rpm --nodeps --force
+
+按照依赖安装各个rpm包
+2、拷贝redis-3.2.0.gem到/opt目录下
+3、执行在opt目录下执行  gem install --local redis-3.2.0.gem
+4、制作6个实例，6379,6380,6381,6389,6390,6391
+                拷贝多个redis.conf文件
+                开启daemonize yes
+                Pid文件名字
+                指定端口
+                Log文件名字
+                Dump.rdb名字
+                Appendonly 关掉或者换名字
+
+5、安装redis cluster配置修改
+        cluster-enabled yes    打开集群模式
+        cluster-config-file  nodes-6379.conf  设定节点配置文件名
+        cluster-node-timeout 15000   设定节点失联时间，超过该时间（毫秒），集群自动进行主从切换。
+
+6、将六个节点合成一个集群
+        组合之前，请确保所有redis实例启动后，nodes-xxxx.conf文件都生成正常。
+cd  /opt/redis-3.2.5/src
+
+./redis-trib.rb create --replicas 1 192.168.1.100:6379 192.168.1.100:6380 192.168.1.100:6381 192.168.1.100:6389 192.168.1.100:6390 192.168.1.100:6391
+此处不要用127.0.0.1， 请用真实IP地址
+
+通过 cluster nodes 命令查看集群信息
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

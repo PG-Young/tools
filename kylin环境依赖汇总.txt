@@ -1,0 +1,14 @@
+﻿1.环境变量
+export JAVA_HOME=/usr/java/jdk1.8.0_201/
+export HADOOP_HOME=/opt/install/hadoop-2.7.2
+export HBASE_HOME=/opt/install/hbase-1.3.1/
+export HIVE_HOME=/opt/install/apache-hive-1.2.1-bin/
+export KYLIN_HOME=/opt/install/apache-kylin-2.5.1-bin-hbase1x
+export PATH=$PATH:$JAVA_HOME/bin:$HBASE_HOME/bin:$HIVE_HOME/bin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$KYLIN_HOME/bin
+2.hdfs+yarn
+3.hbase
+4.zk
+5.hive
+6.historyServer
+7.启动kylin前环境变量要配齐(注意要source生效)；
+  启动kylin前其他系统要启动(hive除外).

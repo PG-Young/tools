@@ -1,0 +1,113 @@
+azkaban的安装
+1、上传azkaban-web-server-2.5.0.tar.gz
+        azkaban-sql-script-2.5.0.tar.gz
+        azkaban-executor-server-2.5.0.tar.gz
+2、解压到/opt/module/azkaban   改名 mv azkaban-web-2.5.0/ server
+    mv azkaban-executor-2.5.0/ executor
+3、azkaban的脚本导入
+    [atguigu@hadoop102 azkaban]$ mysql -uroot -p000000
+    mysql> create database azkaban;
+    mysql> use azkaban;
+    mysql> source /opt/module/azkaban/azkaban-2.5.0/create-all-sql-2.5.0.sql
+4、生成秘钥对和证书生成 keystore的密码及相应信息的密钥库
+    azkaban]$ keytool -keystore keystore -alias jetty -genkey -keyalg RSA
+    密码000000
+5、将keystore 拷贝到 azkaban web服务器根目录中
+[102 azkaban]$ mv keystore /opt/module/azkaban/server/
+    azkaban]$ tzselect 配置时间同步
+6、修改server下的conf下的两个文件
+vim azkaban.properties
+        #Azkaban Personalization Settings
+        #服务器UI名称,用于服务器上方显示的名字
+        azkaban.name=Test
+        #描述
+        azkaban.label=My Local Azkaban
+        #UI颜色
+        azkaban.color=#FF3601
+        azkaban.default.servlet.path=/index
+        #默认web server存放web文件的目录
+        web.resource.dir=/opt/module/azkaban/server/web/
+        #默认时区,已改为亚洲/上海 默认为美国
+        default.timezone.id=Asia/Shanghai
+
+        #Azkaban UserManager class
+        user.manager.class=azkaban.user.XmlUserManager
+        #用户权限管理默认类（绝对路径）
+        user.manager.xml.file=/opt/module/azkaban/server/conf/azkaban-users.xml
+
+        #Loader for projects
+        #global配置文件所在位置（绝对路径）
+        executor.global.properties=/opt/module/azkaban/executor/conf/global.properties
+        azkaban.project.dir=projects
+
+        #数据库类型
+        database.type=mysql
+        #端口号
+        mysql.port=3306
+        #数据库连接IP
+        mysql.host=hadoop102
+        #数据库实例名
+        mysql.database=azkaban
+        #数据库用户名
+        mysql.user=root
+        #数据库密码
+        mysql.password=000000
+        #最大连接数
+        mysql.numconnections=100
+
+        #Jetty端口
+        jetty.port=8081
+        #SSL文件名（绝对路径）
+        jetty.keystore=/opt/module/azkaban/server/keystore
+        #SSL文件密码
+        jetty.password=000000
+        #Jetty主密码与keystore文件相同
+        jetty.keypassword=000000
+        #SSL文件名（绝对路径）
+        jetty.truststore=/opt/module/azkaban/server/keystore
+        #SSL文件密码
+        jetty.trustpassword=000000
+7、web服务器用户配置   conf]$ vim azkaban-users.xml
+<azkaban-users>
+	<user username="azkaban" password="azkaban" roles="admin" groups="azkaban" />
+	<user username="metrics" password="metrics" roles="metrics"/>
+	<user username="admin" password="admin" roles="admin,metrics"/>
+	<role name="admin" permissions="ADMIN" />
+8、修改executor
+    /opt/module/azkaban/executor/conf
+    [atguigu@hadoop102 conf]$ vim azkaban.properties
+            #Azkaban
+            #时区
+            default.timezone.id=Asia/Shanghai
+
+            # Azkaban JobTypes Plugins
+            #jobtype 插件所在位置
+            azkaban.jobtype.plugin.dir=plugins/jobtypes
+
+            #Loader for projects
+            executor.global.properties=/opt/module/azkaban/executor/conf/global.properties
+            azkaban.project.dir=projects
+
+            database.type=mysql
+            mysql.port=3306
+            mysql.host=hadoop102
+            mysql.database=azkaban
+            mysql.user=root
+            mysql.password=000000
+            mysql.numconnections=100
+9、分别启动server和executor服务   先执行executor，再执行web，避免Web Server会因为找不到执行器启动失败。
+    /opt/module/azkaban/executor
+[atguigu@hadoop102 executor]$ bin/azkaban-executor-start.sh
+        /opt/module/azkaban/server
+[atguigu@hadoop102 server]$ bin/azkaban-web-start.sh
+https://服务器IP地址:8443
+
+**********运行project*******************************
+1、编写command等workflow命名保存为.job后缀
+2.压缩成zip格式压缩包
+3、创建project，upload上执行execute
+
+
+    
+
+    

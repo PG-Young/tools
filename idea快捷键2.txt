@@ -1,0 +1,71 @@
+//1.给包或者类重命名 
+shift+f6
+
+//2.快速生成main方法
+输入：psvm 然后回车
+
+//3.快速输出一个变量
+soutv 回车
+
+//4.使用for循环打印
+写 fori 回车
+
+//5.如果想使用for循环输出0-100
+100.for 回车
+
+//6.自动生成代码，toString，get，set等方法或者插入内容
+alt+ins--->已经改成 ：fn+alt+delete
+
+//7.导入包，自动修正代码 解决出现的问题 也可以生成返回值
+alt+enter
+
+//8.代码补全
+ctrl+shift+enter
+
+//9.删除光标所在行
+ctrl+y
+
+//10.复制一行
+ctrl+d
+
+//11.格式化代码
+ctrl+alt+L
+
+//12.添加单行注释
+ctrl+/
+
+//13.取消单行注释
+再按一次ctrl+/
+
+//14.添加多行注释
+ctrl+shift+/
+
+//15.取消多行注释
+再按一次ctrl+shift+/
+
+//16.换行
+shift+enter
+
+//17.移动当前代码行
+alt+shift+向上下键
+
+//18.如果提示不好使，
+可以按ctrl+j
+
+//19.抽取方法
+ctrl+alt+M
+
+//20.查看源代码
+ctrl+N
+
+//21.生成try-catch代码块
+ctrl+alt+t
+
+//22.优化导入的包，可以对当前文件或者整个包使用
+Ctrl+Alt+O
+
+// 快速创建方法
+alt + 回车
+
+ctrl   + o 重写方法。
+ctrl + shift  +t   创建测试

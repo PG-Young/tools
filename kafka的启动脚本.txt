@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "start kafkaServer..."
+for i in 102 103 104
+do
+ssh hadoop$i "source /etc/profile;nohup sh /opt/module/kafka/bin/kafka-server-start.sh -daemon /opt/module/kafka/config/server.properties >/dev/null 2>&1 &"
+done
