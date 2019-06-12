@@ -1,0 +1,12 @@
+sbin/mr-jobhistory-daemon.sh start historyserver
+sbin/start-dfs.sh
+
+bin/hadoop fs -rm -r -f /user/atguigu/oozie-apps/shells
+bin/hadoop fs -put /opt/module/oozie-4.0.0-cdh5.3.6/oozie-apps/ /user/atguigu/
+bin/oozie job -oozie http://hadoop101:11000/oozie -config oozie-apps/xshell/job.properties -run
+
+oozie运行mapreduce
+1、tar -zxvf  oozie-examples.tar.gz
+2、atguigu@hadoop101 apps]$ cp -r map-reduce/ ../../oozie-apps/
+3、cp /opt/module/cdh/hadoop-2.5.0-cdh5.3.6/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.5.0-cdh5.3.6.jar lib/
+ bin/oozied.sh stop

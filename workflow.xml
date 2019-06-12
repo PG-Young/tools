@@ -1,0 +1,83 @@
+<workflow-app xmlns="uri:oozie:workflow:0.4" name="shell-wf">
+    <start to="p1-shell-node"/>
+    <action name="p1-shell-node">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>mkdir</exec>
+            <argument>/opt/module/d1</argument>
+            <capture-output/>
+        </shell>
+        <ok to="forking"/>
+        <error to="fail"/>
+    </action>
+
+    <action name="p2-shell-node">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>mkdir</exec>
+            <argument>/opt/module/d2</argument>
+            <capture-output/>
+        </shell>
+        <ok to="joining"/>
+        <error to="fail"/>
+    </action>
+    <action name="p3-shell-node">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>mkdir</exec>
+            <argument>/opt/module/d3</argument>
+            <capture-output/>
+        </shell>
+        <ok to="joining"/>
+        <error to="fail"/>
+    </action>
+
+    <action name="p4-shell-node">
+        <shell xmlns="uri:oozie:shell-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <configuration>
+                <property>
+                    <name>mapred.job.queue.name</name>
+                    <value>${queueName}</value>
+                </property>
+            </configuration>
+            <exec>mkdir</exec>
+            <argument>/opt/module/d4</argument>
+            <capture-output/>
+        </shell>
+        <ok to="end"/>
+        <error to="fail"/>
+    </action>
+    <fork name="forking">
+        <path start="p2-shell-node"/>
+        <path start="p3-shell-node"/>
+    </fork>
+    <join name="joining" to="p4-shell-node"/>
+    
+    <kill name="fail">
+        <message>Shell action failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <end name="end"/>
+</workflow-app>
